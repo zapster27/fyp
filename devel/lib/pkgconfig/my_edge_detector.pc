@@ -1,0 +1,8 @@
+prefix=/home/ros1/Documents/fyp2/devel
+
+Name: my_edge_detector
+Description: Description of my_edge_detector
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

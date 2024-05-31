@@ -1,0 +1,2 @@
+ROS-TCP-Endpoint-main:my_edge_detector:planedetection
+-DCATKIN_DEVEL_PREFIX=/home/ros1/Documents/fyp2/devel -DCMAKE_INSTALL_PREFIX=/home/ros1/Documents/fyp2/install -G Unix Makefiles
