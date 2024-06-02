@@ -1,0 +1,8 @@
+prefix=/home/ros1/Documents/fyp2/install
+
+Name: planedetection
+Description: Description of planedetection
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
