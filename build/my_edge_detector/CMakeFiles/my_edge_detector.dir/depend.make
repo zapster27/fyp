@@ -310,6 +310,7 @@ my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /us
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/common/copy_point.h
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/common/distances.h
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/common/eigen.h
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/common/geometry.h
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/common/impl/accumulators.hpp
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/common/impl/centroid.hpp
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/common/impl/common.hpp
@@ -340,7 +341,9 @@ my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /us
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/filters/impl/extract_indices.hpp
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/filters/impl/filter.hpp
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/filters/impl/filter_indices.hpp
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/filters/impl/statistical_outlier_removal.hpp
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/filters/impl/voxel_grid.hpp
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/filters/statistical_outlier_removal.h
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/filters/voxel_grid.h
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/for_each_type.h
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/impl/cloud_iterator.hpp
@@ -437,4 +440,10 @@ my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /us
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/segmentation/impl/extract_clusters.hpp
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/segmentation/impl/sac_segmentation.hpp
 my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/segmentation/sac_segmentation.h
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/surface/boost.h
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/surface/eigen.h
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/surface/impl/mls.hpp
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/surface/impl/processing.hpp
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/surface/mls.h
+my_edge_detector/CMakeFiles/my_edge_detector.dir/src/my_edge_detector.cpp.o: /usr/include/pcl-1.10/pcl/surface/processing.h
 

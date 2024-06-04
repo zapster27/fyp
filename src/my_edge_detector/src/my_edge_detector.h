@@ -1,6 +1,8 @@
 #ifndef MY_EDGE_DETECTOR_H
 #define MY_EDGE_DETECTOR_H
 
+#include <pcl/surface/mls.h>  
+#include <pcl/filters/statistical_outlier_removal.h>  
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/point_cloud.h>
@@ -23,60 +25,29 @@ public:
     void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& input);
 
 private:
-    void downsamplePointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_filtered);
-    void detectPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_filtered, const std::string& frame_id);
-    void detectIntersectionEdges(const std::string& frame_id);
-    void detectDoNEdges(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, const std::string& frame_id);
-    void synthesizeEdges(const std::string& frame_id);
-    void combineEdges(const std::string& frame_id);
-    void clusterAndColorEdges(const std::string& frame_id);
-
     ros::Publisher pub_planes_;
     ros::Publisher pub_intersections_;
     ros::Publisher pub_combined_edges_;
     ros::Publisher pub_doncloud_;
-    ros::Publisher pub_clustered_edges_;
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud_;
-    std::vector<Eigen::Vector4f> plane_coefficients_;
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_clouds_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr intersection_lines_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr don_edges_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr class MyEdgeDetector {
-public:
-    MyEdgeDetector(ros::NodeHandle& nh);
-
-    void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& input);
-
-private:
-    ros::Publisher pub_planes_;
-    ros::Publisher pub_intersections_;
-    ros::Publisher pub_combined_edges_;
-    ros::Publisher pub_doncloud_;  // Added publisher for DoN edges
     ros::Publisher pub_fitted_curves_;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr intersection_lines_;
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_clouds_;
+    std::vector<Eigen::Vector4f> plane_coefficients_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr don_edges_;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr intersection_lines_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr synthesized_edges_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr combined_edges_;
-
-    std::vector<Eigen::Vector4f> plane_coefficients_;
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_clouds_;
 
     void downsamplePointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_filtered);
     void detectPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_filtered, const std::string& frame_id);
     void detectIntersectionEdges(const std::string& frame_id);
     void detectDoNEdges(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, const std::string& frame_id);
-    void combineEdges(const std::string& frame_id);
     void synthesizeEdges(const std::string& frame_id);
-    void clusterAndFitCurves(const std::string& frame_id);
-    Eigen::VectorXf fitPolynomial(const Eigen::VectorXf& values, int degree);
-};
-
-#endif // MY_EDGE_DETECTOR_H;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr combined_edges_;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr clustered_edges_;
+    void combineEdges(const std::string& frame_id);
+    void clusterAndFitLines(const std::string& frame_id);
+    void applyMovingLeastSquares(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_smoothed);
+    void removeOutliers(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_filtered);
 };
 
 #endif // MY_EDGE_DETECTOR_H

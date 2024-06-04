@@ -1,47 +1,35 @@
 #include "my_edge_detector.h"
 
 MyEdgeDetector::MyEdgeDetector(ros::NodeHandle& nh) {
-    // Initialize ROS publishers
     pub_planes_ = nh.advertise<sensor_msgs::PointCloud2>("colored_planes", 1);
     pub_intersections_ = nh.advertise<sensor_msgs::PointCloud2>("intersection_lines", 1);
     pub_combined_edges_ = nh.advertise<sensor_msgs::PointCloud2>("combined_edges", 1);
     pub_doncloud_ = nh.advertise<sensor_msgs::PointCloud2>("don_edges", 1);  // Added publisher for DoN edges
-    pub_fitted_curves_ = nh.advertise<sensor_msgs::PointCloud2>("fitted_curves", 1);  // Publisher for fitted curves
+    pub_fitted_curves_ = nh.advertise<sensor_msgs::PointCloud2>("fitted_curves", 1);  // Added publisher for fitted curves
 }
 
 void MyEdgeDetector::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& input) {
-    // Convert the sensor_msgs/PointCloud2 data to pcl/PointCloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*input, *cloud);
 
-    // Downsample the point cloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
     downsamplePointCloud(cloud, cloud_filtered);
 
-    // Get the frame ID from the input cloud
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_smoothed(new pcl::PointCloud<pcl::PointXYZ>);
+    applyMovingLeastSquares(cloud_filtered, cloud_smoothed);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_outliers_removed(new pcl::PointCloud<pcl::PointXYZ>);
+    removeOutliers(cloud_smoothed, cloud_outliers_removed);
+
     std::string frame_id = input->header.frame_id;
-
-    // Detect planes in the downsampled point cloud
-    detectPlanes(cloud_filtered, frame_id);
-
-    // Detect intersection edges from the detected planes
+    detectPlanes(cloud_outliers_removed, frame_id);
     detectIntersectionEdges(frame_id);
-
-    // Detect edges using the Difference of Normals (DoN) method
     detectDoNEdges(cloud, frame_id);
-
-    // Combine DoN edges and intersection lines
     combineEdges(frame_id);
-
-    // Synthesize the edges from combined sources
     synthesizeEdges(frame_id);
-
-    // Cluster the synthesized edges and fit curves
-    clusterAndFitCurves(frame_id);
 }
 
 void MyEdgeDetector::downsamplePointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_filtered) {
-    // Apply a voxel grid filter to downsample the point cloud
     pcl::VoxelGrid<pcl::PointXYZ> vg;
     vg.setInputCloud(cloud);
     vg.setLeafSize(0.01f, 0.01f, 0.01f);
@@ -49,7 +37,6 @@ void MyEdgeDetector::downsamplePointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr& c
 }
 
 void MyEdgeDetector::detectPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_filtered, const std::string& frame_id) {
-    // Set up the SACSegmentation object to segment planes using RANSAC
     pcl::SACSegmentation<pcl::PointXYZ> seg;
     seg.setOptimizeCoefficients(true);
     seg.setModelType(pcl::SACMODEL_PLANE);
@@ -72,17 +59,16 @@ void MyEdgeDetector::detectPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_fil
             break;
         }
 
-        // Extract the inliers (plane points) from the point cloud
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_plane(new pcl::PointCloud<pcl::PointXYZ>);
         extract.setInputCloud(cloud_filtered);
         extract.setIndices(inliers);
         extract.setNegative(false);
         extract.filter(*cloud_plane);
 
-        // Color the plane points with random colors
         uint8_t r = (rand() % 256);
         uint8_t g = (rand() % 256);
         uint8_t b = (rand() % 256);
+
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_plane(new pcl::PointCloud<pcl::PointXYZRGB>);
         for (const auto& point : cloud_plane->points) {
             pcl::PointXYZRGB point_rgb;
@@ -95,21 +81,17 @@ void MyEdgeDetector::detectPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_fil
             colored_plane->points.push_back(point_rgb);
         }
 
-        // Add the colored plane points to the combined cloud
         *colored_cloud_ += *colored_plane;
         plane_clouds_.push_back(cloud_plane);
 
-        // Remove the plane points from the cloud and proceed to the next iteration
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_remaining(new pcl::PointCloud<pcl::PointXYZ>);
         extract.setNegative(true);
         extract.filter(*cloud_remaining);
         cloud_filtered.swap(cloud_remaining);
 
-        // Store the plane coefficients
         plane_coefficients_.push_back(Eigen::Vector4f(coefficients->values[0], coefficients->values[1], coefficients->values[2], coefficients->values[3]));
     }
 
-    // Publish the colored planes
     sensor_msgs::PointCloud2 all_planes_output;
     pcl::toROSMsg(*colored_cloud_, all_planes_output);
     all_planes_output.header.frame_id = frame_id;
@@ -117,7 +99,6 @@ void MyEdgeDetector::detectPlanes(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_fil
 }
 
 void MyEdgeDetector::detectIntersectionEdges(const std::string& frame_id) {
-    // Detect intersection lines between the detected planes
     intersection_lines_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     for (size_t i = 0; i < plane_coefficients_.size(); ++i) {
         for (size_t j = i + 1; j < plane_coefficients_.size(); ++j) {
@@ -127,13 +108,11 @@ void MyEdgeDetector::detectIntersectionEdges(const std::string& frame_id) {
             Eigen::Vector3f normal1(plane1[0], plane1[1], plane1[2]);
             Eigen::Vector3f normal2(plane2[0], plane2[1], plane2[2]);
 
-            // Compute the direction vector of the intersection line
             Eigen::Vector3f direction = normal1.cross(normal2);
             if (direction.norm() < 1e-6) {
                 continue;
             }
 
-            // Set up the linear system to solve for the point on the line
             Eigen::Matrix3f A;
             A << normal1[0], normal1[1], normal1[2],
                  normal2[0], normal2[1], normal2[2],
@@ -142,16 +121,15 @@ void MyEdgeDetector::detectIntersectionEdges(const std::string& frame_id) {
             Eigen::Vector3f b;
             b << -plane1[3], -plane2[3], 0.0;
 
-            // Solve for the point on the intersection line
             Eigen::Vector3f point_on_line = A.colPivHouseholderQr().solve(b);
 
-            // Compute the range of t values based on the points in the planes
             std::vector<float> t_values;
             for (const auto& point : plane_clouds_[i]->points) {
                 Eigen::Vector3f point_vec(point.x, point.y, point.z);
                 float t = (point_vec - point_on_line).dot(direction) / direction.squaredNorm();
                 t_values.push_back(t);
             }
+
             for (const auto& point : plane_clouds_[j]->points) {
                 Eigen::Vector3f point_vec(point.x, point.y, point.z);
                 float t = (point_vec - point_on_line).dot(direction) / direction.squaredNorm();
@@ -162,11 +140,9 @@ void MyEdgeDetector::detectIntersectionEdges(const std::string& frame_id) {
                 continue;
             }
 
-            // Find the min and max t values to limit the line within the planes
             float min_t = *std::min_element(t_values.begin(), t_values.end());
             float max_t = *std::max_element(t_values.begin(), t_values.end());
 
-            // Generate the points along the intersection line
             for (float t = min_t; t <= max_t; t += 0.01) {
                 pcl::PointXYZ point;
                 point.x = point_on_line[0] + t * direction[0];
@@ -177,7 +153,6 @@ void MyEdgeDetector::detectIntersectionEdges(const std::string& frame_id) {
         }
     }
 
-    // Publish the intersection lines
     sensor_msgs::PointCloud2 intersection_output;
     pcl::toROSMsg(*intersection_lines_, intersection_output);
     intersection_output.header.frame_id = frame_id;
@@ -185,11 +160,10 @@ void MyEdgeDetector::detectIntersectionEdges(const std::string& frame_id) {
 }
 
 void MyEdgeDetector::detectDoNEdges(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, const std::string& frame_id) {
-    // Detect edges using the Difference of Normals (DoN) method
     pcl::PointCloud<pcl::PointNormal>::Ptr normals_small(new pcl::PointCloud<pcl::PointNormal>);
     pcl::PointCloud<pcl::PointNormal>::Ptr normals_large(new pcl::PointCloud<pcl::PointNormal>);
 
-    pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::PointNormal> ne;
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::PointNormal> ne;
     ne.setInputCloud(cloud);
     ne.setRadiusSearch(0.02);
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
@@ -207,7 +181,6 @@ void MyEdgeDetector::detectDoNEdges(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, 
         doncloud->points[i].normal_z = normals_large->points[i].normal_z - normals_small->points[i].normal_z;
     }
 
-    // Extract DoN edges based on the magnitude of the difference of normals
     don_edges_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     for (const auto& point : doncloud->points) {
         if (std::sqrt(point.normal_x * point.normal_x + point.normal_y * point.normal_y + point.normal_z * point.normal_z) > 0.2) {
@@ -227,14 +200,11 @@ void MyEdgeDetector::detectDoNEdges(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, 
 }
 
 void MyEdgeDetector::synthesizeEdges(const std::string& frame_id) {
-    // Synthesize edges from DoN edges and intersection lines
     synthesized_edges_.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
-    // Use a Kd-tree for efficient nearest neighbor search
     pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
     kdtree.setInputCloud(don_edges_);
 
-    // Combine points from DoN edges and intersection lines
     for (const auto& point : intersection_lines_->points) {
         std::vector<int> pointIdxRadiusSearch;
         std::vector<float> pointRadiusSquaredDistance;
@@ -254,70 +224,40 @@ void MyEdgeDetector::synthesizeEdges(const std::string& frame_id) {
         }
     }
 
-    // Publish the synthesized edges
     sensor_msgs::PointCloud2 synthesized_output;
     pcl::toROSMsg(*synthesized_edges_, synthesized_output);
     synthesized_output.header.frame_id = frame_id;
     pub_combined_edges_.publish(synthesized_output);  // Reusing combined_edges_ publisher for synthesized edges
 }
 
-void MyEdgeDetector::clusterAndFitCurves(const std::string& frame_id) {
-    // Cluster the synthesized edges using Euclidean clustering
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-    tree->setInputCloud(synthesized_edges_);
-
-    std::vector<pcl::PointIndices> cluster_indices;
-    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-    ec.setClusterTolerance(0.05); // 5cm
-    ec.setMinClusterSize(50);
-    ec.setMaxClusterSize(10000);
-    ec.setSearchMethod(tree);
-    ec.setInputCloud(synthesized_edges_);
-    ec.extract(cluster_indices);
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr fitted_lines(new pcl::PointCloud<pcl::PointXYZ>);
-
-    for (const auto& indices : cluster_indices) {
-        Eigen::MatrixXf points(indices.indices.size(), 3);
-        for (size_t i = 0; i < indices.indices.size(); ++i) {
-            points(i, 0) = synthesized_edges_->points[indices.indices[i]].x;
-            points(i, 1) = synthesized_edges_->points[indices.indices[i]].y;
-            points(i, 2) = synthesized_edges_->points[indices.indices[i]].z;
-        }
-
-        // Fit a line to each cluster of points using least squares
-        Eigen::Vector4f line_coeffs;
-        pcl::compute3DCentroid(*synthesized_edges_, indices.indices, line_coeffs);
-        pcl::Vector3f line_direction = line_coeffs.head<3>();
-
-        // Generate points along the fitted line
-        for (float t = 0.0; t <= 1.0; t += 0.01) {
-            pcl::PointXYZ point;
-            point.x = line_coeffs[0] + t * line_direction[0];
-            point.y = line_coeffs[1] + t * line_direction[1];
-            point.z = line_coeffs[2] + t * line_direction[2];
-            fitted_lines->points.push_back(point);
-        }
-    }
-
-    // Publish the fitted lines
-    sensor_msgs::PointCloud2 fitted_lines_output;
-    pcl::toROSMsg(*fitted_lines, fitted_lines_output);
-    fitted_lines_output.header.frame_id = frame_id;
-    pub_fitted_curves_.publish(fitted_lines_output);
-}
-
 void MyEdgeDetector::combineEdges(const std::string& frame_id) {
-    // Combine DoN edges and intersection lines
     combined_edges_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     *combined_edges_ += *don_edges_;
     *combined_edges_ += *intersection_lines_;
 
-    // Publish the combined edges
     sensor_msgs::PointCloud2 combined_edges_output;
     pcl::toROSMsg(*combined_edges_, combined_edges_output);
     combined_edges_output.header.frame_id = frame_id;
     pub_combined_edges_.publish(combined_edges_output);
+}
+
+void MyEdgeDetector::applyMovingLeastSquares(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_smoothed) {
+    pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
+    mls.setInputCloud(cloud);
+    mls.setSearchRadius(0.03);
+    mls.setPolynomialOrder(2);
+    mls.setUpsamplingMethod(pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ>::SAMPLE_LOCAL_PLANE);
+    mls.setUpsamplingRadius(0.005);
+    mls.setUpsamplingStepSize(0.003);
+    mls.process(*cloud_smoothed);
+}
+
+void MyEdgeDetector::removeOutliers(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_filtered) {
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    sor.setInputCloud(cloud);
+    sor.setMeanK(50);
+    sor.setStddevMulThresh(1.0);
+    sor.filter(*cloud_filtered);
 }
 
 int main(int argc, char** argv) {
@@ -326,7 +266,8 @@ int main(int argc, char** argv) {
 
     MyEdgeDetector detector(nh);
 
-    ros::Subscriber sub = nh.subscribe("/camera/depth_registered/points", 100, &MyEdgeDetector::cloudCallback, &detector);
+    // ros::Subscriber sub = nh.subscribe("/camera/depth_registered/points", 100, &MyEdgeDetector::cloudCallback, &detector);
+    ros::Subscriber sub = nh.subscribe("/camera/ahat", 100, &MyEdgeDetector::cloudCallback, &detector);
 
     ros::spin();
 }
