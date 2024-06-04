@@ -2,4 +2,4 @@
 source_root_dir = '/home/ros1/Documents/fyp2/src'
 whitelisted_packages = ''.split(';') if '' != '' else []
 blacklisted_packages = ''.split(';') if '' != '' else []
-underlay_workspaces = '/home/ros1/Documents/fyp2/devel;/opt/ros/noetic'.split(';') if '/home/ros1/Documents/fyp2/devel;/opt/ros/noetic' != '' else []
+underlay_workspaces = '/opt/ros/noetic'.split(';') if '/opt/ros/noetic' != '' else []
